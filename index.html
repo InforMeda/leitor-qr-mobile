@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Leitor QR Contabilístico Mobile</title>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel para JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Material-UI -->
+    <script src="https://unpkg.com/@mui/material@5.14.0/umd/material-ui.production.min.js"></9script>
+    <script src="https://unpkg.com/@emotion/react@11/umd/emotion-react.umd.min.js"></script>
+    <script src="https://unpkg.com/@emotion/styled@11/umd/emotion-styled.umd.min.js"></script>
+    <!-- HTML5 QR Code Scanner -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    
+    <style>
+        body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Roboto', sans-serif; }
+        #reader { width: 100%; max-width: 500px; margin: 0 auto; border-radius: 8px; overflow: hidden; }
+        .success-snack { background-color: #4caf50 !important; color: white !important; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const { Container, Typography, Paper, Box, CircularProgress, Snackbar, Alert } = MaterialUI;
+
+        function App() {
+            const [status, setStatus] = useState('A iniciar câmara...');
+            const [lastScan, setLastScan] = useState(null);
+            const [openSnackbar, setOpenSnackbar] = useState(false);
+            const html5QrCodeRef = useRef(null);
+
+            // Extrair parâmetros da URL (?gas_url=...&session=...)
+            const params = new URLSearchParams(window.location.search);
+            const gasUrl = params.get('gas_url');
+            const session = params.get('session');
+
+            useEffect(() => {
+                if (!gasUrl || !session) {
+                    setStatus('Erro: Link de conexão inválido. Digitalize o QR Code no PC.');
+                    return;
+                }
+
+                html5QrCodeRef.current = new Html5Qrcode("reader");
+                
+                const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
+                
+                html5QrCodeRef.current.start(
+                    { facingMode: "environment" }, // Câmara traseira
+                    config,
+                    async (decodedText) => {
+                        // Sucesso na leitura
+                        setStatus('A enviar dados...');
+                        try {
+                            const response = await fetch(`${gasUrl}?session=${session}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: decodedText
+                            });
+                            const result = await response.json();
+                            if (result.status === 'sucesso') {
+                                setLastScan(decodedText.substring(0, 30) + '...');
+                                setOpenSnackbar(true);
+                                setStatus('Aguardando próxima leitura...');
+                                // Pausa breve para não ler o mesmo código 10x por segundo
+                                await new Promise(r => setTimeout(r, 1500));
+                            } else {
+                                setStatus('Erro ao enviar: ' + result.msg);
+                            }
+                        } catch (err) {
+                            setStatus('Erro de rede. Verifique a internet.');
+                        }
+                    },
+                    (errorMessage) => {
+                        // Erro de leitura (normal, ignora)
+                    }
+                ).catch(err => {
+                    setStatus('Erro ao iniciar câmara: ' + err);
+                });
+
+                return () => {
+                    if (html5QrCodeRef.current) {
+                        html5QrCodeRef.current.stop().catch(() => {});
+                    }
+                };
+            }, [gasUrl, session]);
+
+            return (
+                <Container maxWidth="sm" sx={{ mt: 4, textAlign: 'center' }}>
+                    <Paper elevation={3} sx={{ p: 3, borderRadius: 4 }}>
+                        <Typography variant="h5" gutterBottom color="primary">
+                            📱 Leitor QR Contabilístico
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Sessão: {session || 'N/A'}
+                        </Typography>
+                        
+                        <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle1" color={status.includes('Erro') ? 'error' : 'primary'}>
+                                {status}
+                            </Typography>
+                        </Box>
+
+                        <div id="reader"></div>
+
+                        {lastScan && (
+                            <Box sx={{ mt: 2, p: 2, bgcolor: '#e8f5e9', borderRadius: 2 }}>
+                                <Typography variant="body2" color="success.dark">
+                                    ✅ Último envio: {lastScan}
+                                </Typography>
+                            </Box>
+                        )}
+                    </Paper>
+
+                    <Snackbar open={openSnackbar} autoHideDuration={2000} onClose={() => setOpenSnackbar(false)}>
+                        <Alert onClose={() => setOpenSnackbar(false)} severity="success" sx={{ width: '100%' }} className="success-snack">
+                            Código QR enviado com sucesso!
+                        </Alert>
+                    </Snackbar>
+                </Container>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
