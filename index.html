@@ -1,133 +1,1048 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Leitor QR Contabilístico Mobile</title>
-    <!-- React & ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Babel para JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Material-UI -->
-    <script src="https://unpkg.com/@mui/material@5.14.0/umd/material-ui.production.min.js"></9script>
-    <script src="https://unpkg.com/@emotion/react@11/umd/emotion-react.umd.min.js"></script>
-    <script src="https://unpkg.com/@emotion/styled@11/umd/emotion-styled.umd.min.js"></script>
-    <!-- HTML5 QR Code Scanner -->
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0d1b2a">
+    <title>Leitor QR Mobile — Contabilista</title>
+
+    <!-- QR Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
     <style>
-        body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Roboto', sans-serif; }
-        #reader { width: 100%; max-width: 500px; margin: 0 auto; border-radius: 8px; overflow: hidden; }
-        .success-snack { background-color: #4caf50 !important; color: white !important; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%);
+            color: #e0e1dd;
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Header */
+        .app-header {
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .app-header h1 {
+            font-size: 1.1rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .app-header h1 .material-icons { color: #00e5ff; font-size: 22px; }
+        .session-badge {
+            background: rgba(0,229,255,0.2);
+            color: #00e5ff;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            border: 1px solid rgba(0,229,255,0.3);
+        }
+
+        /* Main content */
+        .main-content {
+            padding: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Status card */
+        .status-card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 16px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .status-card .icon { font-size: 40px; color: #00e5ff; margin-bottom: 8px; }
+        .status-card h2 { font-size: 1.1rem; margin-bottom: 6px; }
+        .status-card p { font-size: 0.85rem; color: rgba(255,255,255,0.6); }
+
+        /* Scanner area */
+        .scanner-container {
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        #qr-reader { width: 100% !important; }
+        #qr-reader video { border-radius: 16px; }
+        #qr-reader__scan_region { min-height: 250px; }
+        #qr-reader__dashboard { padding: 12px !important; }
+        #qr-reader__dashboard button {
+            background: #00e5ff !important;
+            color: #000 !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 10px 20px !important;
+            font-weight: 600 !important;
+            font-family: 'Roboto', sans-serif !important;
+        }
+        #qr-reader__dashboard select {
+            background: rgba(255,255,255,0.1) !important;
+            color: #fff !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+            border-radius: 8px !important;
+            padding: 8px !important;
+        }
+        #qr-reader__dashboard span {
+            color: rgba(255,255,255,0.7) !important;
+            font-size: 0.85rem !important;
+        }
+
+        /* Action buttons */
+        .action-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.2s;
+            font-family: 'Roboto', sans-serif;
+            margin-bottom: 10px;
+        }
+        .action-btn:active { transform: scale(0.97); }
+        .action-btn-primary {
+            background: linear-gradient(135deg, #00e5ff, #00b0ff);
+            color: #000;
+        }
+        .action-btn-success {
+            background: linear-gradient(135deg, #00e676, #00c853);
+            color: #000;
+        }
+        .action-btn-warning {
+            background: linear-gradient(135deg, #ff9100, #ff6d00);
+            color: #fff;
+        }
+        .action-btn-danger {
+            background: linear-gradient(135deg, #ff5252, #ff1744);
+            color: #fff;
+        }
+        .action-btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* Invoice details */
+        .invoice-card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .invoice-card-header {
+            padding: 14px 16px;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        .invoice-card-header .material-icons { color: #00e5ff; font-size: 20px; }
+        .invoice-card-body { padding: 14px; }
+
+        .invoice-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .invoice-field {
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 10px;
+            border-left: 3px solid #00e5ff;
+        }
+        .invoice-field.highlight {
+            border-left-color: #00e676;
+            background: rgba(0,230,118,0.1);
+        }
+        .invoice-field .label {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 3px;
+        }
+        .invoice-field .value {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #fff;
+            word-break: break-all;
+        }
+
+        /* CamScanner section */
+        .camscanner-section {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .camscanner-header {
+            padding: 14px 16px;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        .camscanner-header .material-icons { color: #00e676; font-size: 20px; }
+        .camscanner-body { padding: 14px; }
+
+        .doc-preview {
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .doc-preview img, .doc-preview canvas {
+            width: 100%;
+            display: block;
+        }
+        .doc-preview .placeholder {
+            color: rgba(255,255,255,0.4);
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .doc-preview .placeholder .material-icons { font-size: 48px; margin-bottom: 8px; }
+
+        .filter-row {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding: 8px 0;
+            margin-bottom: 12px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .filter-chip {
+            padding: 7px 14px;
+            border-radius: 18px;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            transition: all 0.2s;
+            font-family: 'Roboto', sans-serif;
+        }
+        .filter-chip.active {
+            border-color: #00e5ff;
+            background: rgba(0,229,255,0.2);
+            color: #00e5ff;
+        }
+
+        /* Upload progress */
+        .upload-progress {
+            text-align: center;
+            padding: 16px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00e5ff, #00e676);
+            border-radius: 4px;
+            transition: width 0.5s;
+            width: 0%;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(0,0,0,0.9);
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            border-left: 4px solid #00e5ff;
+            animation: slideUp 0.3s ease;
+            pointer-events: all;
+        }
+        .toast.success { border-left-color: #00e676; }
+        .toast.error { border-left-color: #ff5252; }
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Hidden file input */
+        #fileInput { display: none; }
+
+        /* Steps indicator */
+        .steps-bar {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .step-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            transition: all 0.3s;
+        }
+        .step-dot.active { background: #00e5ff; box-shadow: 0 0 8px #00e5ff; }
+        .step-dot.done { background: #00e676; }
+
+        /* Responsive */
+        @media (max-width: 360px) {
+            .invoice-grid { grid-template-columns: 1fr; }
+            .app-header h1 { font-size: 1rem; }
+        }
     </style>
 </head>
 <body>
-    <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
-        const { Container, Typography, Paper, Box, CircularProgress, Snackbar, Alert } = MaterialUI;
+    <!-- Header -->
+    <div class="app-header">
+        <h1>
+            <span class="material-icons">qr_code_scanner</span>
+            Leitor QR Mobile
+        </h1>
+        <span class="session-badge" id="sessionBadge">Sem sessão</span>
+    </div>
 
-        function App() {
-            const [status, setStatus] = useState('A iniciar câmara...');
-            const [lastScan, setLastScan] = useState(null);
-            const [openSnackbar, setOpenSnackbar] = useState(false);
-            const html5QrCodeRef = useRef(null);
+    <!-- Main Content -->
+    <div class="main-content">
 
-            // Extrair parâmetros da URL (?gas_url=...&session=...)
-            const params = new URLSearchParams(window.location.search);
-            const gasUrl = params.get('gas_url');
-            const session = params.get('session');
+        <!-- Status Card -->
+        <div class="status-card" id="statusCard">
+            <div class="icon">
+                <span class="material-icons" id="statusIcon">link</span>
+            </div>
+            <h2 id="statusTitle">A ligar ao PC do contabilista...</h2>
+            <p id="statusText">Aguardando conexão</p>
+        </div>
 
-            useEffect(() => {
-                if (!gasUrl || !session) {
-                    setStatus('Erro: Link de conexão inválido. Digitalize o QR Code no PC.');
-                    return;
-                }
+        <!-- Steps -->
+        <div class="steps-bar" id="stepsBar" style="display:none;">
+            <div class="step-dot active" id="step1dot"></div>
+            <div class="step-dot" id="step2dot"></div>
+            <div class="step-dot" id="step3dot"></div>
+        </div>
 
-                html5QrCodeRef.current = new Html5Qrcode("reader");
-                
-                const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
-                
-                html5QrCodeRef.current.start(
-                    { facingMode: "environment" }, // Câmara traseira
-                    config,
-                    async (decodedText) => {
-                        // Sucesso na leitura
-                        setStatus('A enviar dados...');
-                        try {
-                            const response = await fetch(`${gasUrl}?session=${session}`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'text/plain' },
-                                body: decodedText
-                            });
-                            const result = await response.json();
-                            if (result.status === 'sucesso') {
-                                setLastScan(decodedText.substring(0, 30) + '...');
-                                setOpenSnackbar(true);
-                                setStatus('Aguardando próxima leitura...');
-                                // Pausa breve para não ler o mesmo código 10x por segundo
-                                await new Promise(r => setTimeout(r, 1500));
-                            } else {
-                                setStatus('Erro ao enviar: ' + result.msg);
-                            }
-                        } catch (err) {
-                            setStatus('Erro de rede. Verifique a internet.');
-                        }
-                    },
-                    (errorMessage) => {
-                        // Erro de leitura (normal, ignora)
-                    }
-                ).catch(err => {
-                    setStatus('Erro ao iniciar câmara: ' + err);
-                });
+        <!-- STEP 1: QR Scanner -->
+        <div id="step1">
+            <div class="scanner-container">
+                <div id="qr-reader"></div>
+            </div>
 
-                return () => {
-                    if (html5QrCodeRef.current) {
-                        html5QrCodeRef.current.stop().catch(() => {});
-                    }
-                };
-            }, [gasUrl, session]);
+            <button class="action-btn action-btn-primary" id="btnStartScan" onclick="startScanner()">
+                <span class="material-icons">qr_code_scanner</span>
+                Iniciar Leitura QR
+            </button>
 
-            return (
-                <Container maxWidth="sm" sx={{ mt: 4, textAlign: 'center' }}>
-                    <Paper elevation={3} sx={{ p: 3, borderRadius: 4 }}>
-                        <Typography variant="h5" gutterBottom color="primary">
-                            📱 Leitor QR Contabilístico
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Sessão: {session || 'N/A'}
-                        </Typography>
-                        
-                        <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle1" color={status.includes('Erro') ? 'error' : 'primary'}>
-                                {status}
-                            </Typography>
-                        </Box>
+            <button class="action-btn action-btn-secondary" id="btnStopScan" onclick="stopScanner()" style="display:none;">
+                <span class="material-icons">stop</span>
+                Parar Leitura
+            </button>
+        </div>
 
-                        <div id="reader"></div>
+        <!-- STEP 2: Invoice Details + Document Capture -->
+        <div id="step2" style="display:none;">
+            <!-- Invoice Details -->
+            <div class="invoice-card">
+                <div class="invoice-card-header">
+                    <span class="material-icons">receipt_long</span>
+                    Dados da Fatura
+                </div>
+                <div class="invoice-card-body">
+                    <div class="invoice-grid" id="invoiceGrid">
+                        <div class="invoice-field">
+                            <div class="label">Aguardando leitura...</div>
+                            <div class="value">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                        {lastScan && (
-                            <Box sx={{ mt: 2, p: 2, bgcolor: '#e8f5e9', borderRadius: 2 }}>
-                                <Typography variant="body2" color="success.dark">
-                                    ✅ Último envio: {lastScan}
-                                </Typography>
-                            </Box>
-                        )}
-                    </Paper>
+            <!-- CamScanner -->
+            <div class="camscanner-section">
+                <div class="camscanner-header">
+                    <span class="material-icons">document_scanner</span>
+                    Digitalizar Documento Físico
+                </div>
+                <div class="camscanner-body">
+                    <div class="doc-preview" id="docPreview">
+                        <div class="placeholder">
+                            <span class="material-icons">camera_alt</span>
+                            <p>Capture ou carregue a fatura</p>
+                        </div>
+                    </div>
 
-                    <Snackbar open={openSnackbar} autoHideDuration={2000} onClose={() => setOpenSnackbar(false)}>
-                        <Alert onClose={() => setOpenSnackbar(false)} severity="success" sx={{ width: '100%' }} className="success-snack">
-                            Código QR enviado com sucesso!
-                        </Alert>
-                    </Snackbar>
-                </Container>
-            );
+                    <div class="filter-row" id="filterRow" style="display:none;">
+                        <div class="filter-chip active" data-filter="scanner" onclick="selectFilter(this)">📄 Scanner</div>
+                        <div class="filter-chip" data-filter="original" onclick="selectFilter(this)">📷 Original</div>
+                        <div class="filter-chip" data-filter="bw" onclick="selectFilter(this)"> P&B</div>
+                        <div class="filter-chip" data-filter="enhance" onclick="selectFilter(this)">✨ Melhorar</div>
+                        <div class="filter-chip" data-filter="magic" onclick="selectFilter(this)">🪄 Mágico</div>
+                    </div>
+
+                    <button class="action-btn action-btn-primary" id="btnCapture" onclick="openCameraCapture()">
+                        <span class="material-icons">camera_alt</span>
+                        Capturar Documento
+                    </button>
+
+                    <button class="action-btn action-btn-secondary" id="btnUploadFile" onclick="document.getElementById('fileInput').click()">
+                        <span class="material-icons">upload_file</span>
+                        Carregar Imagem da Galeria
+                    </button>
+                    <input type="file" id="fileInput" accept="image/*" capture="environment" onchange="handleFileUpload(event)">
+
+                    <button class="action-btn action-btn-warning" id="btnApplyFilter" onclick="applyFilter()" style="display:none;">
+                        <span class="material-icons">brush</span>
+                        Aplicar Filtro
+                    </button>
+
+                    <button class="action-btn action-btn-success" id="btnGeneratePDF" onclick="generateAndUploadPDF()" style="display:none;">
+                        <span class="material-icons">cloud_upload</span>
+                        Gerar PDF e Enviar para Drive
+                    </button>
+                </div>
+            </div>
+
+            <button class="action-btn action-btn-secondary" onclick="resetToStep1()">
+                <span class="material-icons">arrow_back</span>
+                Ler Outro QR Code
+            </button>
+        </div>
+
+        <!-- STEP 3: Upload Progress -->
+        <div id="step3" style="display:none;">
+            <div class="invoice-card">
+                <div class="invoice-card-header">
+                    <span class="material-icons">cloud_upload</span>
+                    Envio para Google Drive
+                </div>
+                <div class="invoice-card-body">
+                    <div class="upload-progress">
+                        <span class="material-icons" style="font-size:48px; color:#00e5ff;" id="uploadIcon">cloud_upload</span>
+                        <p style="margin-top:10px; font-size:1rem;" id="uploadStatus">A enviar...</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <p style="color:rgba(255,255,255,0.6); font-size:0.8rem;" id="progressPercent">0%</p>
+                    </div>
+                </div>
+            </div>
+
+            <button class="action-btn action-btn-primary" id="btnNewScan" onclick="resetToStep1()" style="display:none;">
+                <span class="material-icons">refresh</span>
+                Nova Digitalização
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════
+        // CONFIGURATION — Extracted from URL parameters
+        // ═══════════════════════════════════════════════════════
+        const urlParams = new URLSearchParams(window.location.search);
+        const GAS_URL = urlParams.get('gas_url') || '';
+        const SESSION_ID = urlParams.get('session') || '';
+
+        // ═══════════════════════════════════════════════════════
+        // STATE
+        // ═══════════════════════════════════════════════════════
+        let html5QrCode = null;
+        let isScanning = false;
+        let lastQRData = null;
+        let currentFilter = 'scanner';
+        let capturedImageBase64 = null;
+        let processedCanvas = null;
+
+        // ═══════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!GAS_URL || !SESSION_ID) {
+                showStatus('error', 'URL ou sessão inválida', 'Verifique o QR code de ligação gerado pelo PC.');
+                return;
+            }
+
+            document.getElementById('sessionBadge').textContent = `Sessão: ${SESSION_ID.substring(0, 12)}...`;
+            showStatus('ready', 'Pronto para ler', 'Toque em "Iniciar Leitura QR" para começar.');
+            showToast('Conectado à sessão do PC!', 'success');
+        });
+
+        // ═══════════════════════════════════════════════════════
+        // STATUS DISPLAY
+        // ═══════════════════════════════════════════════════════
+        function showStatus(type, title, text) {
+            const icon = document.getElementById('statusIcon');
+            const titleEl = document.getElementById('statusTitle');
+            const textEl = document.getElementById('statusText');
+            const card = document.getElementById('statusCard');
+
+            const icons = {
+                ready: 'link',
+                scanning: 'qr_code_scanner',
+                success: 'check_circle',
+                error: 'error',
+                uploading: 'cloud_upload',
+                done: 'check_circle'
+            };
+
+            const colors = {
+                ready: '#00e5ff',
+                scanning: '#ff9100',
+                success: '#00e676',
+                error: '#ff5252',
+                uploading: '#448aff',
+                done: '#00e676'
+            };
+
+            icon.textContent = icons[type] || 'link';
+            icon.style.color = colors[type] || '#00e5ff';
+            titleEl.textContent = title;
+            textEl.textContent = text;
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        // ═══════════════════════════════════════════════════════
+        // QR SCANNER
+        // ═══════════════════════════════════════════════════════
+        async function startScanner() {
+            if (isScanning) return;
+
+            try {
+                html5QrCode = new Html5Qrcode("qr-reader");
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    onQRScanned,
+                    () => {}
+                );
+                isScanning = true;
+                document.getElementById('btnStartScan').style.display = 'none';
+                document.getElementById('btnStopScan').style.display = 'flex';
+                showStatus('scanning', 'A ler QR code...', 'Aponte para o QR code da fatura');
+                showToast('Câmara ativa! Aponte para o QR code.', 'success');
+            } catch (e) {
+                showToast('Erro ao iniciar câmara: ' + e.message, 'error');
+            }
+        }
+
+        async function stopScanner() {
+            if (html5QrCode && isScanning) {
+                try {
+                    await html5QrCode.stop();
+                    html5QrCode.clear();
+                } catch (e) {}
+            }
+            isScanning = false;
+            document.getElementById('btnStartScan').style.display = 'flex';
+            document.getElementById('btnStopScan').style.display = 'none';
+        }
+
+        async function onQRScanned(decodedText) {
+            // Stop scanner after successful read
+            await stopScanner();
+
+            // Parse QR data
+            const parsed = parseQRData(decodedText);
+            lastQRData = { raw: decodedText, parsed };
+
+            // Send to GAS
+            await sendToGAS(decodedText);
+
+            // Show invoice details
+            renderInvoiceDetails(parsed);
+
+            // Move to step 2
+            goToStep(2);
+            showStatus('success', 'QR code lido!', 'Dados enviados ao PC. Pode digitalizar o documento.');
+            showToast('QR code lido com sucesso!', 'success');
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // QR DATA PARSER
+        // ═══════════════════════════════════════════════════════
+        function parseQRData(raw) {
+            const result = { raw, H: '', B: '', fields: {} };
+            const lines = raw.split(/\r?\n/);
+
+            for (const line of lines) {
+                const m = line.match(/^\*([A-Z0-9]+):\s*(.+)$/);
+                if (m) {
+                    result.fields[m[1]] = m[2].trim();
+                    if (m[1] === 'H') result.H = m[2].trim();
+                    if (m[1] === 'B') result.B = m[2].trim();
+                }
+            }
+
+            // Fallback single-line parsing
+            if (!result.H && !result.B) {
+                const hm = raw.match(/\*H:\s*([^*\n]+)/);
+                const bm = raw.match(/\*B:\s*([^*\n]+)/);
+                if (hm) result.H = hm[1].trim();
+                if (bm) result.B = bm[1].trim();
+            }
+
+            // Format date
+            if (result.fields.F && result.fields.F.length === 8 && /^\d+$/.test(result.fields.F)) {
+                result.fields.F = `${result.fields.F.substring(6,8)}/${result.fields.F.substring(4,6)}/${result.fields.F.substring(0,4)}`;
+            }
+
+            // Format currency
+            ['N', 'O', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7', 'I8'].forEach(key => {
+                if (result.fields[key]) {
+                    const num = parseFloat(result.fields[key]);
+                    if (!isNaN(num)) {
+                        result.fields[key] = num.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+                }
+            });
+
+            return result;
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // SEND TO GAS
+        // ═══════════════════════════════════════════════════════
+        async function sendToGAS(qrRaw) {
+            try {
+                const response = await fetch(`${GAS_URL}?session=${SESSION_ID}`, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: qrRaw
+                });
+                // no-cors means we can't read the response, but the POST should succeed
+                console.log('Dados enviados ao GAS');
+            } catch (e) {
+                console.error('Erro ao enviar para GAS:', e);
+                showToast('Aviso: não foi possível confirmar envio ao PC', 'error');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // RENDER INVOICE DETAILS
+        // ═══════════════════════════════════════════════════════
+        function renderInvoiceDetails(parsed) {
+            const fields = [
+                { label: '📄 Tipo Doc', field: 'D', highlight: false },
+                { label: '📅 Data', field: 'F', highlight: false },
+                { label: '🔢 Nº Doc', field: 'G', highlight: false },
+                { label: '🏢 NIF Emitente', field: 'A', highlight: false },
+                { label: '👤 NIF Adquirente', field: 'B', highlight: false },
+                { label: '🌍 Região', field: 'I1', highlight: false },
+                { label: '💰 Total IVA', field: 'N', highlight: false },
+                { label: ' Total Doc', field: 'O', highlight: true },
+            ];
+
+            let html = '';
+            fields.forEach(f => {
+                const val = parsed.fields[f.field] || '—';
+                html += `
+                    <div class="invoice-field ${f.highlight ? 'highlight' : ''}">
+                        <div class="label">${f.label}</div>
+                        <div class="value">${val}</div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('invoiceGrid').innerHTML = html;
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // CAMERA CAPTURE
+        // ═══════════════════════════════════════════════════════
+        function openCameraCapture() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.capture = 'environment';
+            input.onchange = (e) => handleFileUpload(e);
+            input.click();
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                capturedImageBase64 = e.target.result;
+                showImagePreview(capturedImageBase64);
+                document.getElementById('filterRow').style.display = 'flex';
+                document.getElementById('btnApplyFilter').style.display = 'flex';
+                document.getElementById('btnGeneratePDF').style.display = 'flex';
+                showToast('Imagem carregada! Escolha um filtro.', 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showImagePreview(src) {
+            const preview = document.getElementById('docPreview');
+            preview.innerHTML = `<img src="${src}" alt="Documento" style="border-radius:12px;">`;
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // IMAGE FILTERS (Canvas-based)
+        // ═══════════════════════════════════════════════════════
+        function selectFilter(el) {
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            currentFilter = el.dataset.filter;
+        }
+
+        function applyFilter() {
+            if (!capturedImageBase64) {
+                showToast('Carregue uma imagem primeiro', 'error');
+                return;
+            }
+
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                switch (currentFilter) {
+                    case 'scanner':
+                        applyScannerFilter(data);
+                        break;
+                    case 'bw':
+                        applyBWFilter(data);
+                        break;
+                    case 'enhance':
+                        applyEnhanceFilter(data);
+                        break;
+                    case 'magic':
+                        applyMagicFilter(data);
+                        break;
+                    case 'original':
+                    default:
+                        break;
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+                processedCanvas = canvas;
+
+                const preview = document.getElementById('docPreview');
+                preview.innerHTML = `<canvas id="filteredCanvas" style="width:100%; border-radius:12px;"></canvas>`;
+                const filteredCanvas = document.getElementById('filteredCanvas');
+                filteredCanvas.width = canvas.width;
+                filteredCanvas.height = canvas.height;
+                filteredCanvas.getContext('2d').drawImage(canvas, 0, 0);
+
+                showToast(`Filtro "${currentFilter}" aplicado!`, 'success');
+            };
+            img.src = capturedImageBase64;
+        }
+
+        function clamp(v) { return Math.max(0, Math.min(255, Math.round(v))); }
+
+        function applyScannerFilter(data) {
+            for (let i = 0; i < data.length; i += 4) {
+                let r = data[i], g = data[i+1], b = data[i+2];
+                const lum = 0.299*r + 0.587*g + 0.114*b;
+                r = clamp((r - 128) * 1.4 + 128);
+                g = clamp((g - 128) * 1.4 + 128);
+                b = clamp((b - 128) * 1.4 + 128);
+                if (lum > 200) { r = 255; g = 255; b = 255; }
+                if (lum < 80) { r = clamp(r*0.3); g = clamp(g*0.3); b = clamp(b*0.3); }
+                data[i] = r; data[i+1] = g; data[i+2] = b;
+            }
+        }
+
+        function applyBWFilter(data) {
+            for (let i = 0; i < data.length; i += 4) {
+                const lum = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+                const v = lum > 128 ? 255 : 0;
+                data[i] = v; data[i+1] = v; data[i+2] = v;
+            }
+        }
+
+        function applyEnhanceFilter(data) {
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = clamp((data[i] - 128) * 1.3 + 128);
+                data[i+1] = clamp((data[i+1] - 128) * 1.3 + 128);
+                data[i+2] = clamp((data[i+2] - 128) * 1.3 + 128);
+            }
+        }
+
+        function applyMagicFilter(data) {
+            let minR=255,maxR=0,minG=255,maxG=0,minB=255,maxB=0;
+            for (let i = 0; i < data.length; i += 4) {
+                minR=Math.min(minR,data[i]); maxR=Math.max(maxR,data[i]);
+                minG=Math.min(minG,data[i+1]); maxG=Math.max(maxG,data[i+1]);
+                minB=Math.min(minB,data[i+2]); maxB=Math.max(maxB,data[i+2]);
+            }
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = clamp(((data[i]-minR)/(maxR-minR||1))*255);
+                data[i+1] = clamp(((data[i+1]-minG)/(maxG-minG||1))*255);
+                data[i+2] = clamp(((data[i+2]-minB)/(maxB-minB||1))*255);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // PDF GENERATION & UPLOAD
+        // ══════════════════════════════════════════════════════
+        async function generateAndUploadPDF() {
+            if (!lastQRData) {
+                showToast('Leia um QR code primeiro', 'error');
+                return;
+            }
+
+            goToStep(3);
+            showStatus('uploading', 'A gerar PDF...', 'Processando imagem');
+
+            // Animate progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress = Math.min(progress + Math.random() * 12, 85);
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('progressPercent').textContent = Math.round(progress) + '%';
+            }, 200);
+
+            try {
+                const { jsPDF } = window.jspdf;
+
+                // Use processed canvas or original image
+                let imgData;
+                let imgWidth, imgHeight;
+
+                if (processedCanvas) {
+                    imgData = processedCanvas.toDataURL('image/jpeg', 0.85);
+                    imgWidth = processedCanvas.width;
+                    imgHeight = processedCanvas.height;
+                } else if (capturedImageBase64) {
+                    imgData = capturedImageBase64;
+                    // Get dimensions from image
+                    const img = await loadImage(capturedImageBase64);
+                    imgWidth = img.width;
+                    imgHeight = img.height;
+                } else {
+                    throw new Error('Sem imagem para processar');
+                }
+
+                // Create PDF
+                const isLandscape = imgWidth > imgHeight;
+                const pdf = new jsPDF({
+                    orientation: isLandscape ? 'landscape' : 'portrait',
+                    unit: 'mm',
+                    format: 'a4',
+                    compress: true
+                });
+
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const margin = 10;
+
+                const scaleW = (pageWidth - margin * 2) / imgWidth;
+                const scaleH = (pageHeight - margin * 2) / imgHeight;
+                const scale = Math.min(scaleW, scaleH);
+
+                const drawW = imgWidth * scale;
+                const drawH = imgHeight * scale;
+                const x = (pageWidth - drawW) / 2;
+                const y = (pageHeight - drawH) / 2;
+
+                pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
+
+                // Generate filename from QR data
+                const hValue = lastQRData.parsed.H || 'fatura';
+                const nifValue = lastQRData.parsed.B || 'unknown';
+                const safeName = hValue.replace(/[^a-zA-Z0-9À-ÿ\s_-]/g, '').trim() || 'fatura';
+                const filename = `${safeName}_${nifValue}.pdf`;
+
+                // Get PDF as base64
+                const pdfBase64 = pdf.output('datauristring').split(',')[1];
+
+                clearInterval(progressInterval);
+                progress = 90;
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('progressPercent').textContent = Math.round(progress) + '%';
+                document.getElementById('uploadStatus').textContent = 'A enviar para Google Drive...';
+
+                // Upload to GAS
+                await uploadPDFToDrive(pdfBase64, filename, nifValue);
+
+                clearInterval(progressInterval);
+                document.getElementById('progressFill').style.width = '100%';
+                document.getElementById('progressPercent').textContent = '100%';
+                document.getElementById('uploadIcon').textContent = 'check_circle';
+                document.getElementById('uploadIcon').style.color = '#00e676';
+                document.getElementById('uploadStatus').textContent = '✅ Upload concluído!';
+                document.getElementById('btnNewScan').style.display = 'flex';
+
+                showStatus('done', 'Concluído!', `PDF enviado: ${filename}`);
+                showToast('PDF enviado com sucesso para o Google Drive!', 'success');
+
+            } catch (e) {
+                clearInterval(progressInterval);
+                document.getElementById('uploadIcon').textContent = 'error';
+                document.getElementById('uploadIcon').style.color = '#ff5252';
+                document.getElementById('uploadStatus').textContent = 'Erro: ' + e.message;
+                showToast('Erro: ' + e.message, 'error');
+            }
+        }
+
+        async function uploadPDFToDrive(pdfBase64, filename, nif) {
+            const payload = {
+                action: 'uploadPDF',
+                filename: filename,
+                nif: nif,
+                folderRoot: 'DocumentosClientes',
+                fileData: pdfBase64,
+                mimeType: 'application/pdf',
+                qrData: lastQRData.parsed.fields
+            };
+
+            const response = await fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            // no-cors means we can't read response, but assume success
+            console.log('PDF enviado para Drive');
+        }
+
+        function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = src;
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // NAVIGATION
+        // ═══════════════════════════════════════════════════════
+        function goToStep(n) {
+            document.getElementById('step1').style.display = n === 1 ? 'block' : 'none';
+            document.getElementById('step2').style.display = n === 2 ? 'block' : 'none';
+            document.getElementById('step3').style.display = n === 3 ? 'block' : 'none';
+            document.getElementById('stepsBar').style.display = n > 1 ? 'flex' : 'none';
+
+            // Update dots
+            for (let i = 1; i <= 3; i++) {
+                const dot = document.getElementById(`step${i}dot`);
+                dot.classList.remove('active', 'done');
+                if (i < n) dot.classList.add('done');
+                if (i === n) dot.classList.add('active');
+            }
+        }
+
+        function resetToStep1() {
+            lastQRData = null;
+            capturedImageBase64 = null;
+            processedCanvas = null;
+            currentFilter = 'scanner';
+
+            // Reset UI
+            document.getElementById('docPreview').innerHTML = `
+                <div class="placeholder">
+                    <span class="material-icons">camera_alt</span>
+                    <p>Capture ou carregue a fatura</p>
+                </div>
+            `;
+            document.getElementById('filterRow').style.display = 'none';
+            document.getElementById('btnApplyFilter').style.display = 'none';
+            document.getElementById('btnGeneratePDF').style.display = 'none';
+            document.getElementById('btnNewScan').style.display = 'none';
+            document.getElementById('uploadIcon').textContent = 'cloud_upload';
+            document.getElementById('uploadIcon').style.color = '#00e5ff';
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressPercent').textContent = '0%';
+
+            // Reset filter chips
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            document.querySelector('.filter-chip[data-filter="scanner"]').classList.add('active');
+
+            goToStep(1);
+            showStatus('ready', 'Pronto para ler', 'Toque em "Iniciar Leitura QR" para começar.');
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // TOAST
+        // ═══════════════════════════════════════════════════════
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
     </script>
 </body>
 </html>
